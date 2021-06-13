@@ -1,5 +1,5 @@
 from string import ascii_uppercase as letters
-from configuracao import Entrada  as input_from_file
+from configuracao import Entrada as input_from_file
 import operator
 
 
@@ -7,7 +7,15 @@ def main():
     callback = banker_algorithm()
     print('\n \n')
     print('-- RESULTADO --')
-    say_success('Sistema Seguro.') if not callback['deadlock'] else say_danger('Sistema não seguro.')
+    say_success('Sistema Seguro.') if not callback['deadlock'] else say_danger(
+        'Sistema não seguro.')
+
+    print('Ordem de processos executados: ')
+    for process in callback['executed_processes']:
+        if process == callback['executed_processes'][-1]:
+            print(f'P{process}\n')
+            break
+        print(f'P{process} -> ', end='')
 
     print('Matriz de Recursos Disponíveis, após a execução: ')
     for resources_row in callback['available_resources']:
@@ -22,7 +30,7 @@ def banker_algorithm():
     input_type = int(input('Como gostaria de passar os dados? '))
 
     # # data structures for algorithm
-    
+
     resources = []
     allocated_processes = []
     available_resources = []
@@ -43,9 +51,8 @@ def banker_algorithm():
         allocated_processes = input_from_file.matriz_de_recursos_ja_alocados
         needed_resourses = input_from_file.matriz_de_recursos_solicitados_por_cada_processo
         available_resources = set_available_resources(
-        total_resources, resources, allocated_processes)
+            total_resources, resources, allocated_processes)
 
-    
     # run algorithm logic
     return magic(total_processes, needed_resourses, available_resources, allocated_processes, resources)
 
@@ -67,7 +74,7 @@ def get_algorithm_data_by_terminal():
     # set available resources from data
     available_resources = set_available_resources(
         total_resources, resources, allocated_processes)
-    
+
     return {
         'resources': resources,
         'allocated_processes': allocated_processes,
@@ -83,34 +90,45 @@ def magic(total_processes, needed_resourses, available_resources, allocated_proc
     deadlock = False
     msg_callback = {
         'deadlock': bool,
-        'available_resources': list
+        'available_resources': list,
+        'executed_processes': list
     }
     while len(executed_processes) < total_processes:
+        cannot_run = []
         for process_index in range(len(needed_resourses)):
             if process_index in executed_processes:
                 # process already executed
                 continue
             rq_process, av_resource, current_allocate_process = needed_resourses[
                 process_index], available_resources[-1], allocated_processes[process_index]
-
             if check_if_it_can_run(rq_process, av_resource):
                 # run process request
                 available_resources.append(
                     list(map(operator.add, current_allocate_process, av_resource)))
                 allocated_processes[process_index] = fill_list_with(
                     current_allocate_process, 0)
+
                 executed_processes.append(process_index)
+                if process_index in cannot_run:
+                    cannot_run.remove(process_index)
                 continue
             else:
                 # process cannot be runned
-                if resources == available_resources[-1]:
+                if len(cannot_run) == total_processes - len(executed_processes) or len(executed_processes) == total_processes - 1:
+                    # if all remaining processes run, and none of them can't successfully executed or if it is the last process to run, throw deadlock
                     deadlock = True
                     msg_callback['deadlock'] = deadlock
                     msg_callback['available_resources'] = available_resources
+                    msg_callback['executed_processes'] = list(
+                        map(lambda process: process + 1, executed_processes))
                     return msg_callback
+                # set this case, check if other processes can be executed
+                cannot_run.append(process_index)
                 continue
     msg_callback['deadlock'] = deadlock
     msg_callback['available_resources'] = available_resources
+    msg_callback['executed_processes'] = list(
+        map(lambda process: process + 1, executed_processes))
     return msg_callback
 
 
@@ -177,10 +195,14 @@ def check_if_it_can_run(needed_resources, available_resources):
             return False
     return True
 
+
 def say_success(out_text):
     print('\033[1;32;40m {} \033[0m'.format(out_text))
+
+
 def say_danger(out_text):
     print('\033[1;31;40m {} \033[0m'.format(out_text))
-    
+
+
 if __name__ == '__main__':
     main()
